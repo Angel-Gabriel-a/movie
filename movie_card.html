@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>影片列表卡片</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: transparent;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        #root-tbox {
+            width: 100%;
+            max-width: 350px;
+            background: #FFFFFF;
+            border-radius: 20px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            padding: 16px 12px;
+            max-height: 700px;
+            overflow-y: auto;
+        }
+
+        /* 进度条样式 */
+        .progress-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding: 0 8px;
+            position: relative;
+        }
+
+        .progress-bar__line {
+            position: absolute;
+            top: 15px;
+            left: 12px;
+            right: 12px;
+            height: 2px;
+            background: rgba(141, 159, 184, 0.3);
+            z-index: 1;
+        }
+
+        .progress-bar__line--active {
+            background: #1677FF;
+            transition: all 0.3s ease;
+        }
+
+        .progress-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 2;
+            flex: 1;
+            min-width: 0;
+            user-select: none;
+        }
+
+        .progress-step--clickable {
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .progress-step--clickable:hover .progress-step__circle {
+            transform: scale(1.05);
+            box-shadow: 0 4px 8px rgba(22, 119, 255, 0.2);
+        }
+
+        .progress-step--clickable:hover .progress-step__label {
+            color: #1677FF;
+            font-weight: 500;
+        }
+
+        .progress-step__circle {
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            background: #FFFFFF;
+            border: 2px solid rgba(141, 159, 184, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: 500;
+            color: #8D9FB8;
+            margin-bottom: 8px;
+            transition: all 0.3s ease;
+        }
+
+        .progress-step__circle.active {
+            background: #1677FF;
+            border-color: #1677FF;
+            color: #FFFFFF;
+            box-shadow: 0 2px 6px rgba(22, 119, 255, 0.3);
+        }
+
+        .progress-step__label {
+            font-size: 11px;
+            color: #8D9FB8;
+            text-align: center;
+            line-height: 1.3;
+            transition: all 0.3s ease;
+            max-width: 60px;
+            word-break: break-all;
+        }
+
+        .progress-step__label.active {
+            color: #1677FF;
+            font-weight: 500;
+        }
+
+        /* 原有卡片样式保持不变 */
+        .movie-card__list {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .movie-card__list.empty {
+            display: none;
+        }
+
+        .movie-card__item {
+            display: flex;
+            gap: 14px;
+            padding: 16px;
+            background: #FFFFFF;
+            border: 1px solid rgba(199, 206, 216, 0.4);
+            border-radius: 16px;
+            transition: all 0.3s ease;
+            min-height: 100px;
+            max-height: 100px;
+            overflow: hidden;
+            position: relative;
+            cursor: pointer;
+            align-items: center;
+        }
+
+        .movie-card__item:hover {
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+            border-color: rgba(22, 119, 255, 0.3);
+        }
+
+        .movie-card__image {
+            width: 40px;
+            height: 60px;
+            border-radius: 8px;
+            object-fit: cover;
+            flex-shrink: 0;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .movie-card__content {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            padding-right: 0;
+        }
+
+        .movie-card__name {
+            font-size: 15px;
+            font-weight: 500;
+            color: #1F3B63;
+            line-height: 1.3;
+            margin-bottom: 2px;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-height: 2.6em;
+            letter-spacing: -0.2px;
+        }
+
+        .movie-card__director {
+            font-size: 12px;
+            color: #4B6B99;
+            line-height: 1.3;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            letter-spacing: -0.1px;
+        }
+
+        .movie-card__actors {
+            font-size: 11px;
+            color: #8D9FB8;
+            line-height: 1.3;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            letter-spacing: -0.1px;
+        }
+
+        .movie-card__info-sidebar {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+            gap: 8px;
+            min-width: 90px;
+            flex-shrink: 0;
+        }
+
+        .movie-card__tags-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            align-items: flex-end;
+            width: 100%;
+        }
+
+        .movie-card__type-tag {
+            background: rgba(22, 119, 255, 0.1);
+            color: #1677FF;
+            font-size: 10px;
+            font-weight: 500;
+            padding: 4px 8px;
+            border-radius: 12px;
+            line-height: 1.2;
+            border: 1px solid rgba(22, 119, 255, 0.2);
+            min-width: 40px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 90px;
+        }
+
+        .movie-card__genres-tag {
+            background: rgba(31, 59, 99, 0.1);
+            color: #1F3B63;
+            font-size: 10px;
+            padding: 4px 8px;
+            border-radius: 12px;
+            line-height: 1.2;
+            min-width: 60px;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 90px;
+        }
+
+        .movie-card__bottom-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            justify-content: flex-end;
+            width: 100%;
+        }
+
+        .movie-card__duration-tag {
+            background: rgba(141, 159, 184, 0.08);
+            color: #8D9FB8;
+            font-size: 10px;
+            padding: 3px 8px;
+            border-radius: 10px;
+            line-height: 1.2;
+            min-width: 50px;
+            text-align: center;
+            border: 1px solid rgba(141, 159, 184, 0.2);
+        }
+
+        .movie-card__rating-bubble {
+            background: linear-gradient(135deg, #1677FF, #1890FF);
+            color: #FFFFFF;
+            font-size: 11px;
+            font-weight: 600;
+            padding: 5px 8px;
+            border-radius: 12px;
+            line-height: 1;
+            min-width: 35px;
+            text-align: center;
+            box-shadow: 0 2px 6px rgba(22, 119, 255, 0.3);
+        }
+
+        .pagination-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            margin-top: 12px;
+            padding-top: 16px;
+            border-top: 1px solid rgba(199, 206, 216, 0.3);
+        }
+
+        .pagination-info {
+            font-size: 12px;
+            color: #4B6B99;
+            font-weight: 500;
+            letter-spacing: -0.1px;
+            text-align: center;
+            line-height: 1.4;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .pagination-info__stats {
+            font-size: 12px;
+            color: #8D9FB8;
+            margin-left: 8px;
+        }
+
+        .pagination-controls {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .pagination-btn {
+            width: 32px;
+            height: 32px;
+            border: 1px solid rgba(141, 159, 184, 0.4);
+            background: #FFFFFF;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #4B6B99;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            user-select: none;
+            font-weight: 500;
+        }
+
+        .pagination-btn:hover {
+            background: rgba(22, 119, 255, 0.1);
+            border-color: #1677FF;
+            color: #1677FF;
+            transform: translateY(-1px);
+        }
+
+        .pagination-btn.active {
+            background: #1677FF;
+            border-color: #1677FF;
+            color: #FFFFFF;
+            font-weight: 600;
+            box-shadow: 0 2px 4px rgba(22, 119, 255, 0.3);
+        }
+
+        .pagination-ellipsis {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            color: #8D9FB8;
+            user-select: none;
+        }
+
+        .pagination-btn.disabled {
+            background: rgba(141, 159, 184, 0.1);
+            border-color: rgba(141, 159, 184, 0.3);
+            color: rgba(141, 159, 184, 0.5);
+            cursor: not-allowed;
+        }
+
+        .pagination-btn.disabled:hover {
+            background: rgba(141, 159, 184, 0.1);
+            border-color: rgba(141, 159, 184, 0.3);
+            color: rgba(141, 159, 184, 0.5);
+            transform: none;
+        }
+
+        @media (max-width: 375px) {
+            #root-tbox {
+                max-width: 100%;
+                margin: 0 12px;
+                padding: 14px 10px;
+            }
+            
+            .progress-bar {
+                margin-bottom: 18px;
+                padding: 0 6px;
+            }
+            
+            .progress-bar__line {
+                top: 14px;
+                left: 10px;
+                right: 10px;
+            }
+            
+            .progress-step__circle {
+                width: 28px;
+                height: 28px;
+                font-size: 11px;
+                margin-bottom: 6px;
+            }
+            
+            .progress-step__label {
+                font-size: 10px;
+                max-width: 55px;
+            }
+            
+            .movie-card__list {
+                gap: 14px;
+                margin-bottom: 18px;
+            }
+            
+            .movie-card__item {
+                padding: 14px;
+                min-height: 95px;
+                max-height: 95px;
+                gap: 12px;
+            }
+            
+            .movie-card__image {
+                width: 40px;
+                height: 60px;
+            }
+            
+            .movie-card__content {
+                gap: 5px;
+            }
+            
+            .movie-card__name {
+                font-size: 14px;
+                -webkit-line-clamp: 2;
+                max-height: 2.6em;
+            }
+            
+            .movie-card__director {
+                font-size: 11px;
+            }
+            
+            .movie-card__actors {
+                font-size: 10px;
+            }
+            
+            .movie-card__info-sidebar {
+                min-width: 85px;
+                gap: 6px;
+            }
+            
+            .movie-card__tags-row {
+                gap: 3px;
+            }
+            
+            .movie-card__type-tag {
+                font-size: 9px;
+                padding: 3px 6px;
+                min-width: 35px;
+                max-width: 85px;
+            }
+            
+            .movie-card__genres-tag {
+                font-size: 9px;
+                padding: 3px 6px;
+                min-width: 55px;
+                max-width: 85px;
+            }
+            
+            .movie-card__bottom-row {
+                gap: 6px;
+            }
+            
+            .movie-card__duration-tag {
+                font-size: 9px;
+                padding: 2px 6px;
+                min-width: 45px;
+            }
+            
+            .movie-card__rating-bubble {
+                font-size: 10px;
+                padding: 4px 6px;
+                min-width: 32px;
+            }
+            
+            .pagination-container {
+                gap: 10px;
+                margin-top: 10px;
+                padding-top: 14px;
+            }
+            
+            .pagination-info {
+                font-size: 11px;
+                gap: 3px;
+            }
+            
+            .pagination-info__stats {
+                font-size: 11px;
+                margin-left: 6px;
+            }
+            
+            .pagination-btn {
+                width: 30px;
+                height: 30px;
+                font-size: 11px;
+            }
+            
+            .pagination-ellipsis {
+                width: 30px;
+                height: 30px;
+                font-size: 11px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="root-tbox">
+        <!-- 进度条组件 -->
+        <div class="progress-bar" id="progressBar">
+            <div class="progress-bar__line"></div>
+            <div class="progress-bar__line progress-bar__line--active" id="activeProgressLine"></div>
+            <div class="progress-step progress-step--clickable" data-step="1" id="stepMovie">
+                <div class="progress-step__circle" data-key="step1-circle">1</div>
+                <div class="progress-step__label" data-key="step1-label">选择电影</div>
+            </div>
+            <div class="progress-step" data-step="2">
+                <div class="progress-step__circle" data-key="step2-circle">2</div>
+                <div class="progress-step__label" data-key="step2-label">选择影院</div>
+            </div>
+            <div class="progress-step" data-step="3">
+                <div class="progress-step__circle" data-key="step3-circle">3</div>
+                <div class="progress-step__label" data-key="step3-label">选择场次</div>
+            </div>
+            <div class="progress-step" data-step="4">
+                <div class="progress-step__circle" data-key="step4-circle">4</div>
+                <div class="progress-step__label" data-key="step4-label">选择座位</div>
+            </div>
+            <div class="progress-step" data-step="5">
+                <div class="progress-step__circle" data-key="step5-circle">5</div>
+                <div class="progress-step__label" data-key="step5-label">支付出票</div>
+            </div>
+        </div>
+
+        <div class="movie-card__list" id="cardsContainer">
+            <!-- 电影列表将由JS动态生成 -->
+        </div>
+        <div class="pagination-container" id="pagination">
+            <div class="pagination-info" id="pageInfo">
+                第 <span id="currentPageDisplay">1</span> 页，共 <span id="totalPagesDisplay">1</span> 页
+                <div class="pagination-info__stats" id="totalStats">
+                    共 <span id="totalCountDisplay">0</span> 条数据
+                </div>
+            </div>
+            <div class="pagination-controls" id="paginationControls">
+                <!-- 页码按钮将由JS动态生成 -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 定义参数
+        window.tboxParams = [
+            { 
+                key: 'filmList', 
+                type: 'Array<Object>', 
+                description: '影片列表数据（当前页数据）', 
+                mock: [
+                    {
+                        name: "流浪地球2",
+                        director: "郭帆",
+                        cast: "吴京,刘德华,李雪健",
+                        duration: 173,
+                        grade: 8.6,
+                        filmTypes: "科幻,冒险",
+                        versionTypes: "IMAX",
+                        todaySchedule: 8,
+                        picThumb: "https://www.weavefox.cn/api/bolt/unsplash_image?keyword=%E6%B5%81%E6%B5%AA%E5%9C%B0%E7%90%83&width=40&height=60&random=%E6%B5%81%E6%B5%AA%E5%9C%B0%E7%90%83_40_60"
+                    }
+                ]
+            },
+            { key: 'pageSize', type: 'Number', description: '每页显示影片数量', mock: 4 },
+            { key: 'total', type: 'Number', description: '数据总数，用于展示总条数和分页计算', mock: 1 },
+            { key: 'currentPage', type: 'Number', description: '当前页码，用于控制显示第几页', mock: 1 },
+            { key: 'currentStep', type: 'Number', description: '当前进度步骤（1-5对应选择电影到支付出票）', mock: 1 }
+        ];
+
+        // 辅助函数，用来获取参数值
+        function getParam(key) {
+            var param = window.tboxParams.find(function(p) { return p.key === key; });
+            return param ? param.mock : null;
+        }
+
+        let currentPage = 1;
+        let pageSize = 4;
+        let totalPages = 1;
+        let totalCount = 0;
+
+        // 安全格式化逗号分隔字符串
+        function formatList(str) {
+            if (!str || typeof str !== 'string') return '';
+            return str.split(',').map(s => s.trim()).filter(s => s).join('、');
+        }
+
+        // 获取数据总数，完全依赖外部传入的total参数
+        function getTotalCount() {
+            const totalParam = getParam('total');
+            
+            // 如果total参数有值且大于等于0，使用total参数
+            if (totalParam !== null && totalParam !== undefined && totalParam >= 0) {
+                return totalParam;
+            }
+            
+            // 否则返回0，表示无数据
+            return 0;
+        }
+
+        // 更新进度条显示
+        function updateProgressBar() {
+            const currentStep = getParam('currentStep') || 1;
+            const steps = document.querySelectorAll('.progress-step');
+            const activeLine = document.getElementById('activeProgressLine');
+            
+            // 所有步骤重置为未激活状态
+            steps.forEach(step => {
+                const circle = step.querySelector('.progress-step__circle');
+                const label = step.querySelector('.progress-step__label');
+                const stepNumber = parseInt(step.dataset.step);
+                
+                circle.classList.remove('active');
+                label.classList.remove('active');
+                
+                // 当前步骤及之前的步骤设为激活状态
+                if (stepNumber <= currentStep) {
+                    circle.classList.add('active');
+                    label.classList.add('active');
+                }
+            });
+            
+            // 更新进度线宽度
+            if (activeLine) {
+                const totalWidth = activeLine.parentElement.offsetWidth - 24;
+                const segmentWidth = totalWidth / 4; // 5个步骤有4个间隔
+                const activeWidth = (currentStep - 1) * segmentWidth;
+                activeLine.style.width = Math.max(0, activeWidth) + 'px';
+            }
+        }
+
+        // 进度条点击事件处理
+        function handleProgressClick(step) {
+            // 只有"选择电影"步骤（步骤1）有点击功能
+            if (step === 1) {
+                if (window.tboxBridge && typeof window.tboxBridge.sendQuery === 'function') {
+                    window.tboxBridge.sendQuery({
+                        question_content: "重新选电影"
+                    });
+                } else {
+                    console.log("重新选电影");
+                }
+            }
+        }
+
+        // 渲染卡片的函数
+        window.renderCard = function() {
+            pageSize = getParam('pageSize') || 4;
+            totalCount = getTotalCount();
+            totalPages = Math.ceil(totalCount / pageSize);
+            
+            // 使用外部传入的当前页码，如果未设置或无效则使用默认值1
+            const externalCurrentPage = getParam('currentPage');
+            if (externalCurrentPage !== null && externalCurrentPage !== undefined) {
+                // 确保页码在有效范围内
+                currentPage = Math.max(1, Math.min(externalCurrentPage, totalPages || 1));
+            } else {
+                currentPage = 1;
+            }
+                
+            // 更新进度条
+            updateProgressBar();
+            
+            renderFilms();
+            renderPagination();
+            bindEvents();
+        };
+
+        function renderFilms() {
+            const filmList = getParam('filmList') || [];
+            const container = document.getElementById('cardsContainer');
+            if (!container) return;
+            
+            // 重新计算数据总数和总页数（基于total参数）
+            totalCount = getTotalCount();
+            totalPages = Math.ceil(totalCount / pageSize);
+            
+            // 确保当前页码在有效范围内
+            if (currentPage > totalPages) {
+                currentPage = Math.max(1, totalPages);
+            }
+            
+            container.innerHTML = '';
+
+            // 检查是否有实际数据，如果没有数据则完全隐藏卡片区域
+            if (filmList.length === 0 || totalCount === 0) {
+                container.classList.add('empty');
+                return;
+            }
+
+            // 有数据时显示卡片区域
+            container.classList.remove('empty');
+            
+            // 显示传入的当前页数据
+            for (let i = 0; i < filmList.length; i++) {
+                const film = filmList[i];
+                const formattedDirector = formatList(film.director);
+                const formattedCast = formatList(film.cast);
+
+                const movieItem = document.createElement('div');
+                movieItem.className = 'movie-card__item';
+                movieItem.innerHTML = `
+                    <img data-key="picThumb" src="${film.picThumb}" alt="${film.name}" class="movie-card__image" onerror="this.src='https://www.weavefox.cn/api/bolt/unsplash_image?keyword=%E7%94%B5%E5%BD%B1&width=40&height=60&random=%E7%94%B5%E5%BD%B1_40_60'">
+                    <div class="movie-card__content">
+                        <div class="movie-card__name" data-key="name">${film.name}</div>
+                        <div class="movie-card__director" data-key="director">导演：${formattedDirector}</div>
+                        <div class="movie-card__actors" data-key="cast">主演：${formattedCast}</div>
+                    </div>
+                    <div class="movie-card__info-sidebar">
+                        <div class="movie-card__tags-row">
+                            <span class="movie-card__type-tag" data-key="versionTypes">${film.versionTypes}</span>
+                            <span class="movie-card__genres-tag" data-key="filmTypes">${film.filmTypes}</span>
+                        </div>
+                        <div class="movie-card__bottom-row">
+                            <span class="movie-card__duration-tag" data-key="duration">${film.duration}分钟</span>
+                            <span class="movie-card__rating-bubble" data-key="grade">${film.grade}</span>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(movieItem);
+            }
+        }
+
+        function renderPagination() {
+            const currentPageDisplay = document.getElementById('currentPageDisplay');
+            const totalPagesDisplay = document.getElementById('totalPagesDisplay');
+            const totalCountDisplay = document.getElementById('totalCountDisplay');
+            const paginationControls = document.getElementById('paginationControls');
+            
+            if (!currentPageDisplay || !totalPagesDisplay || !totalCountDisplay || !paginationControls) return;
+
+            // 更新页码信息
+            currentPageDisplay.textContent = currentPage;
+            totalPagesDisplay.textContent = totalPages;
+            totalCountDisplay.textContent = totalCount;
+            
+            paginationControls.innerHTML = '';
+
+            // 只有一页或没有数据时不显示页码按钮
+            if (totalPages <= 1 || totalCount === 0) return;
+
+            const maxVisiblePages = 5;
+            let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+            let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+            if (endPage - startPage + 1 < maxVisiblePages) {
+                startPage = Math.max(1, endPage - maxVisiblePages + 1);
+            }
+
+            // 添加上一页按钮
+            if (currentPage > 1) {
+                const prevButton = document.createElement('div');
+                prevButton.className = 'pagination-btn';
+                prevButton.textContent = '‹';
+                prevButton.dataset.page = currentPage - 1;
+                paginationControls.appendChild(prevButton);
+            }
+
+            // 添加第一页和省略号
+            if (startPage > 1) {
+                addPageButton(paginationControls, 1);
+                if (startPage > 2) {
+                    addEllipsis(paginationControls);
+                }
+            }
+
+            // 添加中间页码
+            for (let i = startPage; i <= endPage; i++) {
+                addPageButton(paginationControls, i);
+            }
+
+            // 添加省略号和最后一页
+            if (endPage < totalPages) {
+                if (endPage < totalPages - 1) {
+                    addEllipsis(paginationControls);
+                }
+                addPageButton(paginationControls, totalPages);
+            }
+
+            // 添加下一页按钮
+            if (currentPage < totalPages) {
+                const nextButton = document.createElement('div');
+                nextButton.className = 'pagination-btn';
+                nextButton.textContent = '›';
+                nextButton.dataset.page = currentPage + 1;
+                paginationControls.appendChild(nextButton);
+            }
+        }
+
+        function addPageButton(container, pageNumber) {
+            const button = document.createElement('div');
+            button.className = 'pagination-btn' + (pageNumber === currentPage ? ' active' : '');
+            button.textContent = pageNumber;
+            button.dataset.page = pageNumber;
+            container.appendChild(button);
+        }
+
+        function addEllipsis(container) {
+            const ellipsis = document.createElement('div');
+            ellipsis.className = 'pagination-ellipsis';
+            ellipsis.textContent = '...';
+            container.appendChild(ellipsis);
+        }
+
+        function bindEvents() {
+            // 绑定影片卡片点击事件
+            document.querySelectorAll('.movie-card__item:not(.empty)').forEach(item => {
+                item.onclick = function() {
+                    const movieName = item.querySelector('.movie-card__name').textContent;
+                    if (window.tboxBridge && typeof window.tboxBridge.sendQuery === 'function') {
+                        window.tboxBridge.sendQuery({
+                            question_content: `确认选择《${movieName}》`
+                        });
+                    } else {
+                        console.log(`确认选择《${movieName}》`);
+                    }
+                };
+            });
+
+            // 绑定页码点击事件 - 修改：点击页码时保持当前页面不动，只触发事件
+            document.querySelectorAll('.pagination-btn').forEach(button => {
+                button.onclick = function() {
+                    const page = parseInt(this.dataset.page);
+                    if (page !== currentPage && page >= 1 && page <= totalPages) {
+                        // 只触发事件，不重新渲染页面内容
+                        if (window.tboxBridge && typeof window.tboxBridge.sendQuery === 'function') {
+                            window.tboxBridge.sendQuery({
+                                question_content: `翻到第${page}页`
+                            });
+                        } else {
+                            console.log(`翻到第${page}页`);
+                        }
+                    }
+                };
+            });
+
+            // 绑定进度条点击事件 - 新增：只有"选择电影"步骤可点击
+            const movieStep = document.getElementById('stepMovie');
+            if (movieStep) {
+                movieStep.onclick = function() {
+                    const step = parseInt(this.dataset.step);
+                    handleProgressClick(step);
+                };
+            }
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            window.renderCard();
+        });
+    </script>
+</body>
+</html>
